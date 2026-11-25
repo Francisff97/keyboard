@@ -504,10 +504,81 @@ class _ChangesList extends StatelessWidget {
         final kb = layout.byId(b.key)!;
         return (ka.y * 1000 + ka.x).compareTo(kb.y * 1000 + kb.x);
       });
+    final tabs = Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          FDChip(
+            label: 'Modifiche · ${layerNames[state.layer]}  ${entries.length}',
+            selected: !state.showLog,
+            onTap: () => state.setShowLog(false),
+          ),
+          const SizedBox(width: 8),
+          FDChip(label: 'Registro  ${state.log.length}', selected: state.showLog, onTap: () => state.setShowLog(true)),
+        ],
+      ),
+    );
+    if (state.showLog) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tabs,
+          if (state.log.isEmpty)
+            const Hint(
+              'Qui compare ogni tasto che Tocco ha cambiato davvero, con dispositivo, profilo e app. '
+              'Premi un tasto che hai modificato: se non compare niente, Tocco non l\'ha intercettato.',
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: state.log.length,
+                itemBuilder: (context, i) {
+                  final e = state.log[i];
+                  final t = e.time;
+                  final hh =
+                      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:${t.second.toString().padLeft(2, '0')}';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: FD.lineSoft)),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(width: 70, child: Text(hh, style: FD.monoStyle(size: 9.5))),
+                        Container(
+                          width: 64,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(border: Border.all(color: FD.line)),
+                          child: Text(
+                            e.key.toUpperCase(),
+                            overflow: TextOverflow.ellipsis,
+                            style: FD.monoStyle(size: 9.5, color: FD.text),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            e.what,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, color: FD.text),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(e.where.toUpperCase(), style: FD.monoStyle(size: 9)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionLabel(entries.length.toString().padLeft(2, '0'), 'Modifiche · ${layerNames[state.layer]}'),
+        tabs,
         if (entries.isEmpty)
           Hint(
             state.layer == 0

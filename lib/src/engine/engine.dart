@@ -56,6 +56,30 @@ class InputFrom extends EngineEvent {
   final String deviceId;
 }
 
+/// Il motore ha appena fatto scattare un'azione (per il registro).
+class Fired extends EngineEvent {
+  Fired({
+    required this.code,
+    required this.how,
+    required this.kind,
+    required this.device,
+    required this.layer,
+    required this.profile,
+    required this.app,
+  }) : time = DateTime.now();
+
+  final int code;
+
+  /// "tap" (premuto) o "hold" (tenuto premuto)
+  final String how;
+  final String kind;
+  final String device;
+  final int layer;
+  final String profile;
+  final String app;
+  final DateTime time;
+}
+
 /// Il motore è stato messo in pausa (o ripreso) dalla barra dei menu.
 class EnabledChanged extends EngineEvent {
   EnabledChanged(this.enabled);
@@ -94,6 +118,16 @@ class Engine {
             return DevicesChanged([
               for (final d in (m['devices'] as List?) ?? const []) DetectedDevice.fromMap(d as Map<Object?, Object?>),
             ]);
+          case 'fired':
+            return Fired(
+              code: (m['code'] as num?)?.toInt() ?? -1,
+              how: m['how'] as String? ?? 'tap',
+              kind: m['kind'] as String? ?? '',
+              device: m['device'] as String? ?? '',
+              layer: (m['layer'] as num?)?.toInt() ?? 0,
+              profile: m['profile'] as String? ?? '',
+              app: m['app'] as String? ?? '',
+            );
           case 'input':
             return InputFrom(m['device'] as String? ?? '');
           case 'enabled':

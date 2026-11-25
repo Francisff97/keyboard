@@ -77,6 +77,12 @@ Sui mouse da gioco i tasti DPI e sniper spesso cambiano la sensibilità **dentro
 
 La rotella che scorre e i tilt laterali restano come sono.
 
+## Come verificare che funziona
+
+Sotto il disegno c'è **Registro**: ogni volta che Tocco cambia davvero un tasto, compare una riga con ora, tasto, cosa ha fatto, dispositivo, profilo e app. Premi un tasto che hai modificato:
+- **compare la riga, ma non succede niente**: Tocco l'ha intercettato e il problema è l'azione (scorciatoia disattivata in macOS, link sbagliato…);
+- **non compare niente**: Tocco non l'ha intercettato. Controlla l'avviso rosso sopra il disegno, l'avviso blu "Stai usando…" e il profilo attivo in "In primo piano".
+
 ## Limiti da sapere
 
 - **Fn e luci della tastiera** sono gestiti dal firmware della tastiera e non arrivano al Mac.

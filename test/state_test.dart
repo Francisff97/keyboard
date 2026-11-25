@@ -92,4 +92,23 @@ void main() {
     expect(s.device?.isMouse, isFalse);
     expect(s.managedDevices.every(s.isConnected), isTrue);
   });
+
+  test('il registro traduce in parole quello che ha fatto il motore', () async {
+    final path = '${Directory.systemTemp.createTempSync('tocco').path}/t.json';
+    final s = AppState(
+      store: Store(path: path),
+      engine: _FakeEngine([_solidee]),
+    );
+    await s.init();
+    final kb = s.device!;
+    // Caps Lock (57) tenuto premuto nel profilo Globale → Livello 1.
+    final e = LogEntry.from(
+      Fired(code: 57, how: 'hold', kind: 'layer', device: kb.id, layer: 0, profile: 'Globale', app: 'Safari'),
+      s,
+    );
+    expect(e.key, 'CapsLock');
+    expect(e.what, 'tenuto: Livello 1');
+    expect(e.where, contains('Globale'));
+    expect(e.where, contains('in Safari'));
+  });
 }

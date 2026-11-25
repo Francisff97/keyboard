@@ -41,12 +41,14 @@ struct BindingCfg {
 typealias LayersCfg = [[Int64: BindingCfg]]
 
 struct ProfileCfg {
+  let name: String
   let global: Bool
   let bundleIds: [String]
   /// devices[idDispositivo] = livelli
   let devices: [String: LayersCfg]
 
   init(_ d: [String: Any]) {
+    name = d["name"] as? String ?? ""
     global = d["global"] as? Bool ?? false
     bundleIds = d["bundleIds"] as? [String] ?? []
     var out: [String: LayersCfg] = [:]
@@ -122,10 +124,18 @@ struct SpecialKey {
   static let byAsMac = Dictionary(uniqueKeysWithValues: all.map { ($0.asMac, $0) })
 }
 
+/// Dove è stata trovata la regola: per il registro in Flutter.
+private struct Match {
+  let device: String
+  let layer: Int
+  let profile: String
+}
+
 /// Un tasto con la funzione "tenuto premuto", mentre è giù.
 private struct HeldKey {
   let tap: ActionCfg?
   let hold: ActionCfg
+  let match: Match
   var used = false
 }
 
@@ -176,6 +186,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   private var lastKey: [Int64: Seen] = [:]
   private var lastButton: [Int64: Seen] = [:]
   private var lastInputDevice = ""
+  private var lastMatch: Match?
 
   // MARK: Avvio
 
@@ -590,6 +601,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
       return Unmanaged.passUnretained(event)
     }
     swallowedButtons.insert(button)
+    report(button, "tap", action)
     if action.kind == "remap", let mac = action.mac {
       postKey(mac, flags: extraFlags)
     } else {
@@ -615,7 +627,11 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     if !down {
       if let h = held.removeValue(forKey: code) {
         release(h)
-        if !h.used, let t = h.tap { perform(t) }
+        if !h.used, let t = h.tap {
+          lastMatch = h.match
+          report(code, "tap", t)
+          perform(t)
+        }
         return nil
       }
       if let target = remapped.removeValue(forKey: code) {
@@ -635,17 +651,23 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
       return withExtraFlags(event)
     }
 
-    if let hold = binding.hold, !isRepeat {
-      held[code] = HeldKey(tap: binding.tap, hold: hold)
+    if let hold = binding.hold, !isRepeat, let match = lastMatch {
+      held[code] = HeldKey(tap: binding.tap, hold: hold, match: match)
       switch hold.kind {
-      case "layer": layerStack.append(hold.layer)
-      case "modifier": extraFlags.formUnion(hold.flags)
+      case "layer":
+        layerStack.append(hold.layer)
+        report(code, "hold", hold)
+      case "modifier":
+        extraFlags.formUnion(hold.flags)
+        report(code, "hold", hold)
       case "shortcut":
         // Scorciatoia tenendo premuto: parte dopo 250 ms se il tasto è ancora giù.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
           guard let self, var h = self.held[code], !h.used else { return }
           h.used = true
           self.held[code] = h
+          self.lastMatch = h.match
+          self.report(code, "hold", hold)
           self.perform(hold)
         }
       default: break
@@ -654,6 +676,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     }
 
     guard let action = binding.tap else { return withExtraFlags(event) }
+    if !isRepeat { report(code, "tap", action) }
     switch action.kind {
     case "remap":
       guard let target = action.mac else { return Unmanaged.passUnretained(event) }
@@ -703,14 +726,27 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     let layer = layerStack.last ?? 0
     for dev in candidates {
       for l in Set([layer, 0]).sorted(by: >) {
-        if let b = appProfile?.binding(device: dev, layer: l, code: code)
-          ?? global?.binding(device: dev, layer: l, code: code)
-        {
+        if let b = appProfile?.binding(device: dev, layer: l, code: code) {
+          lastMatch = Match(device: dev, layer: l, profile: appProfile?.name ?? "")
+          return b
+        }
+        if let b = global?.binding(device: dev, layer: l, code: code) {
+          lastMatch = Match(device: dev, layer: l, profile: global?.name ?? "")
           return b
         }
       }
     }
     return nil
+  }
+
+  /// Registro per Flutter: quale tasto ha fatto scattare cosa, e dove.
+  private func report(_ code: Int64, _ how: String, _ action: ActionCfg) {
+    guard let m = lastMatch else { return }
+    send([
+      "type": "fired", "code": code, "how": how, "kind": action.kind,
+      "device": m.device, "layer": m.layer, "profile": m.profile,
+      "app": lastApp?.localizedName ?? "",
+    ])
   }
 
   // MARK: Azioni

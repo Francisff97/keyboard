@@ -13,6 +13,35 @@ import 'model/seed.dart';
 
 const toccoBundleId = 'me.francescoferri.tocco';
 
+/// Una riga del registro, già tradotta in parole.
+class LogEntry {
+  LogEntry({required this.time, required this.key, required this.what, required this.where});
+
+  final DateTime time;
+  final String key;
+  final String what;
+  final String where;
+
+  static LogEntry from(Fired f, AppState s) {
+    final dev = s.devices.where((d) => d.id == f.device).firstOrNull;
+    final key = dev?.layout.keys.where((k) => k.mac == f.code).firstOrNull;
+    final profile = s.profiles.where((p) => p.name == f.profile).firstOrNull;
+    final binding = (dev != null && key != null) ? profile?.binding(dev.id, f.layer, key.id) : null;
+    final action = f.how == 'hold' ? binding?.hold : binding?.tap;
+    return LogEntry(
+      time: f.time,
+      key: key == null ? '#${f.code}' : (key.label.isEmpty ? 'Spazio' : key.label),
+      what: '${f.how == 'hold' ? 'tenuto: ' : ''}${action?.describe ?? f.kind}',
+      where: [
+        dev?.shortName ?? f.device,
+        f.profile,
+        if (f.layer > 0) layerNames[f.layer],
+        if (f.app.isNotEmpty) 'in ${f.app}',
+      ].join(' · '),
+    );
+  }
+}
+
 /// Tutto lo stato dell'app in un posto solo.
 class AppState extends ChangeNotifier {
   AppState({Store? store, Engine? engine}) : store = store ?? Store(), engine = engine ?? Engine();
@@ -123,6 +152,16 @@ class AppState extends ChangeNotifier {
 
   EngineStatus status = const EngineStatus();
 
+  /// Le ultime azioni fatte scattare dal motore, la più recente per prima.
+  final log = <LogEntry>[];
+
+  bool _showLog = false;
+  bool get showLog => _showLog;
+  void setShowLog(bool v) {
+    _showLog = v;
+    notifyListeners();
+  }
+
   /// Id del dispositivo da cui è arrivato l'ultimo tasto (dal motore).
   String? lastInputId;
 
@@ -190,6 +229,9 @@ class AppState extends ChangeNotifier {
         _mergeConnected(firstRun: false);
       case PermissionsChanged(:final status):
         this.status = status;
+      case Fired():
+        log.insert(0, LogEntry.from(e, this));
+        if (log.length > 40) log.removeLast();
       case InputFrom(:final deviceId):
         lastInputId = deviceId;
         // Un tasto da un dispositivo mai visto (es. interfaccia nascosta di un
