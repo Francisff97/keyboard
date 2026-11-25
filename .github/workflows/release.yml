@@ -1,8 +1,11 @@
-name: Release
+name: Build e release
 
-# Crea l'app per Mac quando pubblichi un tag, es. v0.1.0
+# - ogni push su main: test + build per Mac (controlla che compili anche Swift)
+# - tag vX.Y.Z: in più crea la release su GitHub con .dmg e .zip da scaricare
+# - a mano (Actions → Build e release → Run workflow): build da scaricare come artifact
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -14,12 +17,21 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter pub get
-      - run: flutter test
-      - run: flutter build macos --release
+          cache: true
+
+      - name: Pacchetti
+        run: flutter pub get
+
+      - name: Test
+        run: flutter test
+
+      - name: Build macOS
+        run: flutter build macos --release
+
       - name: Firma ad hoc, zip e dmg
         run: |
           APP=build/macos/Build/Products/Release/Tocco.app
@@ -30,9 +42,27 @@ jobs:
           cp -R "$APP" "$STAGE/"
           ln -s /Applications "$STAGE/Applications"
           hdiutil create -volname Tocco -srcfolder "$STAGE" -ov -format UDZO dist/Tocco-macOS.dmg
-      - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+
+      - name: Artifact (scaricabile dalla pagina della build)
+        uses: actions/upload-artifact@v4
         with:
+          name: Tocco-macOS
+          path: dist/
+          retention-days: 14
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Tocco ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## Installazione
+            1. Scarica **Tocco-macOS.dmg** e trascina Tocco in Applicazioni.
+            2. La prima volta: tasto destro su Tocco → **Apri** → **Apri** (l'app non è firmata con un account Apple Developer).
+               Se dice che è danneggiata: `xattr -dr com.apple.quarantine /Applications/Tocco.app`
+            3. Dai i permessi **Accessibilità** e **Monitoraggio input** in Impostazioni di Sistema → Privacy e sicurezza, poi riapri Tocco.
+            4. Accendi **Motore attivo** in alto.
           files: |
             dist/Tocco-macOS.dmg
             dist/Tocco-macOS.zip
