@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tocco/src/data/store.dart';
 import 'package:tocco/src/engine/engine.dart';
 import 'package:tocco/src/model/device.dart';
+import 'package:tocco/src/model/actions.dart';
 import 'package:tocco/src/model/keyboard.dart';
+import 'package:tocco/src/model/seed.dart';
 import 'package:tocco/src/state.dart';
 
 /// Motore finto: decide il test quali dispositivi sono collegati.
@@ -101,14 +103,28 @@ void main() {
     );
     await s.init();
     final kb = s.device!;
-    // Caps Lock (57) tenuto premuto nel profilo Globale → Livello 1.
+    expect(kb.name, 'SOLIDEE 68');
+    // Shift destro (60) tenuto premuto, da "Tutte le tastiere" → Livello 1.
     final e = LogEntry.from(
-      Fired(code: 57, how: 'hold', kind: 'layer', device: kb.id, layer: 0, profile: 'Globale', app: 'Safari'),
+      Fired(code: 60, how: 'hold', kind: 'layer', device: 'TUTTE', layer: 0, profile: 'Globale', app: 'Safari'),
       s,
     );
-    expect(e.key, 'CapsLock');
+    expect(e.key, 'Shift');
     expect(e.what, 'tenuto: Livello 1');
     expect(e.where, contains('Globale'));
     expect(e.where, contains('in Safari'));
+  });
+
+  test('i comandi personali arrivano anche su una configurazione già salvata', () async {
+    final path = '${Directory.systemTemp.createTempSync('tocco').path}/t.json';
+    final store = Store(path: path);
+    // Configurazione vecchia, senza comandi personali.
+    await store.save(StoredConfig(profiles: seedProfiles(), devices: []));
+    final s = AppState(store: store, engine: _FakeEngine([_mxKeys]));
+    await s.init();
+    expect(s.globalProfile.binding(allKeyboardsId, 1, 'm')?.tap, isA<OpenAppAction>());
+    // Sulla MX Keys il G del livello 1 arriva da "Tutte le tastiere".
+    s.setLayer(1);
+    expect(s.inheritance('g')?.from, 'Tutte le tastiere');
   });
 }

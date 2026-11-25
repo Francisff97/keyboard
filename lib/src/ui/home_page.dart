@@ -322,6 +322,8 @@ class _InputHint extends StatelessWidget {
     final from = state.lastInputDevice;
     final shown = state.device;
     if (from == null || from.id == shown?.id) return const SizedBox.shrink();
+    // Su "Tutte le tastiere" va bene qualsiasi tastiera.
+    if (shown != null && shown.all && !from.isMouse) return const SizedBox.shrink();
     final name = '${from.isMouse ? 'il mouse' : 'la tastiera'} «${from.name}»';
     final (String text, String action, VoidCallback onTap) = from.managed
         ? (
@@ -330,7 +332,9 @@ class _InputHint extends StatelessWidget {
             () => state.selectDevice(from.id),
           )
         : (
-            'Stai usando $name, che Tocco non gestisce: i suoi tasti restano normali.',
+            from.isMouse
+                ? 'Stai usando $name, che Tocco non gestisce: i suoi pulsanti restano normali.'
+                : 'Stai usando $name: valgono le regole di "Tutte le tastiere". Attivala per cambiarle solo per lei.',
             'Attivala',
             () => state.setManaged(from, true),
           );
@@ -436,7 +440,7 @@ class _DevicesRow extends StatelessWidget {
             ],
           ),
         ),
-        if (d != null && !d.isMouse) ...[
+        if (d != null && !d.isMouse && !d.all) ...[
           const SizedBox(width: 12),
           Text('LAYOUT', style: FD.monoStyle(size: 9.5)),
           const SizedBox(width: 12),
@@ -579,7 +583,13 @@ class _ChangesList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         tabs,
-        if (entries.isEmpty)
+        if (entries.isEmpty && layout.keys.any((k) => state.inheritedFor(k.id) != null))
+          Hint(
+            'Nessuna modifica solo per ${state.device?.shortName}: i tasti in grigio arrivano da '
+            '${state.device?.all == true ? 'profilo Globale' : '"Tutte le tastiere" o dal profilo Globale'}. '
+            'Cliccane uno per vedere cosa fa o cambiarlo solo qui.',
+          )
+        else if (entries.isEmpty)
           Hint(
             state.layer == 0
                 ? 'Nessun tasto cambiato in questo profilo.'

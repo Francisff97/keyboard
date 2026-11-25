@@ -23,7 +23,7 @@ class LogEntry {
   final String where;
 
   static LogEntry from(Fired f, AppState s) {
-    final dev = s.devices.where((d) => d.id == f.device).firstOrNull;
+    final dev = s.managedDevices.followedBy(s.devices).where((d) => d.id == f.device).firstOrNull;
     final key = dev?.layout.keys.where((k) => k.mac == f.code).firstOrNull;
     final profile = s.profiles.where((p) => p.name == f.profile).firstOrNull;
     final binding = (dev != null && key != null) ? profile?.binding(dev.id, f.layer, key.id) : null;
@@ -65,13 +65,16 @@ class AppState extends ChangeNotifier {
   /// Tutti i dispositivi conosciuti (collegati ora o in passato).
   List<DeviceConfig> get devices => _config?.devices ?? const [];
 
+  /// "Tutte le tastiere": sempre presente, prima scheda.
+  final allKeyboards = DeviceConfig.allKeyboards();
+
   /// Quelli che Tocco gestisce: diventano le schede sopra il disegno.
-  List<DeviceConfig> get managedDevices => devices.where((d) => d.managed).toList();
+  List<DeviceConfig> get managedDevices => [allKeyboards, ...devices.where((d) => d.managed)];
 
   /// Quelli collegati adesso, come li vede macOS.
   List<DetectedDevice> connected = const [];
 
-  bool isConnected(DeviceConfig d) => connected.any((c) => c.id == d.baseId);
+  bool isConnected(DeviceConfig d) => d.all || connected.any((c) => c.id == d.baseId);
 
   String? _deviceId;
 
@@ -82,8 +85,8 @@ class AppState extends ChangeNotifier {
     if (managed.isEmpty) return null;
     final chosen = managed.where((d) => d.id == _deviceId).firstOrNull;
     if (chosen != null) return chosen;
-    final online = managed.where(isConnected).toList();
-    return online.where((d) => !d.isMouse).firstOrNull ?? online.firstOrNull ?? managed.first;
+    final online = managed.where((d) => !d.all && isConnected(d)).toList();
+    return online.where((d) => !d.isMouse).firstOrNull ?? allKeyboards;
   }
 
   Layout get layout => device?.layout ?? Layouts.ansi;
@@ -186,12 +189,17 @@ class AppState extends ChangeNotifier {
       final c = StoredConfig(profiles: [], devices: [], enabled: false);
       _config = c;
       _mergeConnected(firstRun: true);
-      final kb = c.devices.where((d) => d.managed && !d.isMouse).firstOrNull;
       final mouse = c.devices.where((d) => d.managed && d.isMouse).firstOrNull;
-      c.profiles.addAll(seedProfiles(keyboard: kb?.id, mouse: mouse?.id));
+      c.profiles.addAll(seedProfiles(mouse: mouse?.id));
     } else {
       _config = stored;
       _mergeConnected(firstRun: false);
+    }
+    // Comandi personali aggiunti in una versione successiva: li metto una volta sola.
+    final c = _config!;
+    if (c.presets < presetsVersion) {
+      addPersonalPresets(globalProfile);
+      c.presets = presetsVersion;
     }
     notifyListeners();
 
@@ -351,18 +359,33 @@ class AppState extends ChangeNotifier {
 
   KeyBinding? bindingFor(String keyId, {int? layer}) => profile.binding(_dev, layer ?? _layer, keyId);
 
-  /// Nei profili per app, quello che non è toccato arriva dal Globale.
-  KeyBinding? inheritedFor(String keyId) {
-    if (profile.global) return null;
-    return globalProfile.binding(_dev, _layer, keyId);
+  /// Da dove arriva un tasto non toccato qui: prima "Tutte le tastiere" dello
+  /// stesso profilo, poi il Globale (della tastiera, poi di tutte le tastiere).
+  ({KeyBinding binding, String from})? inheritance(String keyId) {
+    final d = device;
+    if (d == null) return null;
+    final sources = <(Profile, String, String)>[
+      if (!d.all && !d.isMouse) (profile, allKeyboardsId, 'Tutte le tastiere'),
+      if (!profile.global) (globalProfile, d.id, 'profilo Globale'),
+      if (!profile.global && !d.all && !d.isMouse) (globalProfile, allKeyboardsId, 'Globale · Tutte le tastiere'),
+    ];
+    for (final (p, dev, from) in sources) {
+      final b = p.binding(dev, _layer, keyId);
+      if (b != null) return (binding: b, from: from);
+    }
+    return null;
   }
+
+  KeyBinding? inheritedFor(String keyId) => inheritance(keyId)?.binding;
 
   /// Il tasto apre, tenuto premuto, il livello che stai guardando?
   bool opensCurrentLayer(String keyId) {
     if (_layer == 0) return false;
     return [profile, globalProfile].any((p) {
-      final hold = p.binding(_dev, 0, keyId)?.hold;
-      return hold is LayerAction && hold.layer == _layer;
+      return [_dev, allKeyboardsId].any((dev) {
+        final hold = p.binding(dev, 0, keyId)?.hold;
+        return hold is LayerAction && hold.layer == _layer;
+      });
     });
   }
 
@@ -441,7 +464,7 @@ class AppState extends ChangeNotifier {
     final c = _config;
     if (c == null) return;
     await store.save(c);
-    await engine.apply(profiles: c.profiles, devices: c.devices, enabled: c.enabled);
+    await engine.apply(profiles: c.profiles, devices: [allKeyboards, ...c.devices], enabled: c.enabled);
     status = await engine.status();
     _dirty = false;
     lastApplied = DateTime.now();

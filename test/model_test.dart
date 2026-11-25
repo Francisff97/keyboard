@@ -65,28 +65,32 @@ void main() {
   });
 
   test('i profili tornano uguali dal JSON', () {
-    for (final p in seedProfiles(keyboard: 'AAAA:0001', mouse: 'BBBB:0002')) {
+    final profiles = seedProfiles(mouse: 'BBBB:0002');
+    addPersonalPresets(profiles.first);
+    for (final p in profiles) {
       final back = Profile.fromJson(p.toJson());
       expect(back.toJson(), p.toJson());
     }
   });
 
   test('il motore riceve keycode per le tastiere e pulsanti per i mouse', () {
-    final kb = DeviceConfig(
-      vendorId: 0xAAAA,
-      productId: 1,
-      name: 'SOLIDEE',
-      kind: DeviceKind.keyboard,
-      layoutId: 'solidee65',
-    );
+    final all = DeviceConfig.allKeyboards();
     final mouse = DeviceConfig(vendorId: 0xBBBB, productId: 2, name: 'G502', kind: DeviceKind.mouse, layoutId: 'mouse');
-    final global = seedProfiles(keyboard: kb.id, mouse: mouse.id).first;
-    final engine = global.toEngine([kb, mouse]);
+    final global = seedProfiles(mouse: mouse.id).first;
+    addPersonalPresets(global);
+    final engine = global.toEngine([all, mouse]);
     final devices = engine['devices'] as Map;
 
-    final kbBase = (devices[kb.id] as List).first as Map;
-    expect((kbBase['57'] as Map)['tap'], {'kind': 'remap', 'mac': 53});
-    expect((kbBase['57'] as Map)['hold'], {'kind': 'layer', 'layer': 1});
+    // Shift destro (60) tenuto → Livello 1; nel livello 1 G (5) apre il gestionale.
+    final layers = devices['TUTTE'] as List;
+    expect(((layers[0] as Map)['60'] as Map)['hold'], {'kind': 'layer', 'layer': 1});
+    expect(((layers[1] as Map)['5'] as Map)['tap'], {'kind': 'url', 'url': 'https://gestionale.francescoferri.me'});
+    // C (8) apre Claude in Safari.
+    expect(((layers[1] as Map)['8'] as Map)['tap'], {
+      'kind': 'url',
+      'url': 'https://claude.ai/new',
+      'path': '/Applications/Safari.app',
+    });
 
     // Indietro (pulsante 3) → ⌘[ (keycode 33).
     final mouseBase = (devices[mouse.id] as List).first as Map;
@@ -98,8 +102,8 @@ void main() {
   });
 
   test('i dispositivi non gestiti non arrivano al motore', () {
-    final kb = DeviceConfig(vendorId: 1, productId: 1, name: 'x', kind: DeviceKind.keyboard, layoutId: 'ansi');
-    final global = seedProfiles(keyboard: kb.id).first;
+    final global = seedProfiles(mouse: 'BBBB:0002').first;
+    addPersonalPresets(global);
     expect((global.toEngine([])['devices'] as Map), isEmpty);
   });
 
@@ -119,7 +123,7 @@ void main() {
     final store = Store(path: '${dir.path}/tocco.json');
     expect(await store.load(), isNull);
     final config = StoredConfig(
-      profiles: seedProfiles(keyboard: 'AAAA:0001'),
+      profiles: seedProfiles()..first.setBinding('AAAA:0001', 0, 'caps', const KeyBinding(hold: LayerAction(1))),
       devices: [
         DeviceConfig(vendorId: 0xAAAA, productId: 1, name: 'SOLIDEE', kind: DeviceKind.keyboard, layoutId: 'solidee65'),
       ],
@@ -142,5 +146,15 @@ void main() {
     expect(base.containsKey('60'), isTrue);
     // Shift destro trasformato in F19 dal motore: sul disegno si accende ancora Shift destro.
     expect(Layouts.byFlutterUsage(0x0007006E)?.id, 'rshift');
+  });
+
+  test('i comandi personali si aggiungono una volta sola e non sovrascrivono', () {
+    final global = Profile(id: 'globale', name: 'Globale', global: true)
+      ..setBinding(allKeyboardsId, 1, 'g', const KeyBinding(tap: TextAction('mio')));
+    addPersonalPresets(global);
+    addPersonalPresets(global);
+    expect(global.binding(allKeyboardsId, 1, 'g')?.tap, isA<TextAction>());
+    expect(global.binding(allKeyboardsId, 1, 'e')?.tap, isA<OpenUrlAction>());
+    expect(global.layer(allKeyboardsId, 1).length, 7);
   });
 }

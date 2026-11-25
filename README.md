@@ -39,6 +39,26 @@
 
 Serve macOS 12 o più recente, su Mac con chip Apple o Intel.
 
+## Tutte le tastiere
+
+La prima scheda sopra il disegno è **Tutte le tastiere**: quello che imposti lì vale su qualsiasi tastiera, anche una mai collegata prima. Così impari le scorciatoie una volta e le ritrovi uguali a casa, al lavoro, sul MacBook. Nella scheda di una tastiera precisa i tasti che arrivano da "Tutte le tastiere" sono in grigio: puoi cambiarli solo per lei.
+
+### Comandi già pronti
+
+Tieni premuto **Shift destro** (c'è su tutte le tastiere) e premi:
+
+| Tasto | Cosa fa |
+| --- | --- |
+| G | Gestionale |
+| E | Mail del Gestionale |
+| C | Claude in Safari |
+| T | 10FastFingers in Safari |
+| A | Gestione inserzioni di Meta |
+| L | Luci di casa con Home Assistant ([come configurarlo](docs/home-assistant.md)) |
+| M | Musica |
+
+Finché Tocco è attivo, Shift destro non fa più le maiuscole: per quelle usa lo Shift di sinistra.
+
 ## Riconoscimento automatico
 
 All'avvio Tocco chiede a macOS quali tastiere e mouse sono collegati. Per ciascuno legge nome, VendorID e ProductID, e se si presenta come tastiera, come mouse o come entrambi.

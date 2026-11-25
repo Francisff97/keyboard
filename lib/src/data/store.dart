@@ -7,17 +7,27 @@ import '../model/device.dart';
 import '../model/profile.dart';
 
 class StoredConfig {
-  StoredConfig({required this.profiles, required this.devices, this.enabled = true, this.italianLegends = true});
+  StoredConfig({
+    required this.profiles,
+    required this.devices,
+    this.enabled = true,
+    this.italianLegends = true,
+    this.presets = 0,
+  });
 
   final List<Profile> profiles;
   final List<DeviceConfig> devices;
   bool enabled;
   bool italianLegends;
 
+  /// Versione dei comandi personali già aggiunti (vedi addPersonalPresets).
+  int presets;
+
   Map<String, Object?> toJson() => {
     'version': 2,
     'enabled': enabled,
     'italianLegends': italianLegends,
+    'presets': presets,
     'devices': [for (final d in devices) d.toJson()],
     'profiles': [for (final pr in profiles) pr.toJson()],
   };
@@ -57,6 +67,7 @@ class Store {
         ],
         enabled: j['enabled'] as bool? ?? true,
         italianLegends: j['italianLegends'] as bool? ?? true,
+        presets: (j['presets'] as num?)?.toInt() ?? 0,
       );
     } catch (_) {
       // File rovinato: lo tengo da parte e riparto dagli esempi.

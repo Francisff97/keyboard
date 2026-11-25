@@ -1,54 +1,80 @@
 import 'actions.dart';
+import 'device.dart';
 import 'keyboard.dart';
 import 'profile.dart';
 
 KeyDef _k(String id) => Layouts.target(id)!;
 
-/// I profili di partenza: esempi da cambiare, non regole.
-/// [keyboard] e [mouse] sono gli id dei dispositivi a cui legare gli esempi.
-List<Profile> seedProfiles({String? keyboard, String? mouse}) {
-  final global = Profile(id: 'globale', name: 'Globale', global: true);
-  final figma = Profile(
-    id: 'figma',
-    name: 'Figma',
-    apps: [const AppRef(name: 'Figma', bundleId: 'com.figma.Desktop', path: '/Applications/Figma.app')],
-  );
-  final code = Profile(
-    id: 'vscode',
-    name: 'VS Code',
-    apps: [
-      const AppRef(
-        name: 'Visual Studio Code',
-        bundleId: 'com.microsoft.VSCode',
-        path: '/Applications/Visual Studio Code.app',
-      ),
-    ],
-  );
-  final games = Profile(id: 'giochi', name: 'Giochi');
+/// Versione dei comandi personali: aumentala quando aggiungi comandi qui sotto,
+/// così Tocco li aggiunge anche a chi ha già le impostazioni salvate.
+const presetsVersion = 1;
 
-  if (keyboard != null) {
-    final k = keyboard;
-    global
-      // Caps Lock: premuto è Esc, tenuto premuto apre il livello 1.
-      ..setBinding(k, 0, 'caps', KeyBinding(tap: RemapAction(_k('esc')), hold: const LayerAction(1)))
-      // Livello 1: frecce sotto la mano destra, Home/End, scorciatoie utili.
-      ..setBinding(k, 1, 'i', KeyBinding(tap: RemapAction(_k('up'))))
-      ..setBinding(k, 1, 'j', KeyBinding(tap: RemapAction(_k('left'))))
-      ..setBinding(k, 1, 'k', KeyBinding(tap: RemapAction(_k('down'))))
-      ..setBinding(k, 1, 'l', KeyBinding(tap: RemapAction(_k('right'))))
-      ..setBinding(k, 1, 'u', KeyBinding(tap: RemapAction(_k('home'))))
-      ..setBinding(k, 1, 'o', KeyBinding(tap: RemapAction(_k('end'))))
-      ..setBinding(k, 1, 'p', const KeyBinding(tap: MediaAction(MediaKey.playPause)))
-      ..setBinding(k, 1, 'lbracket', const KeyBinding(tap: MediaAction(MediaKey.volumeDown)))
-      ..setBinding(k, 1, 'rbracket', const KeyBinding(tap: MediaAction(MediaKey.volumeUp)));
-    figma
-      ..setBinding(k, 0, 'pgup', KeyBinding(tap: ShortcutAction({Mod.cmd}, _k('z'))))
-      ..setBinding(k, 0, 'pgdn', KeyBinding(tap: ShortcutAction({Mod.cmd, Mod.shift}, _k('z'))));
-    code
-      ..setBinding(k, 0, 'pgup', KeyBinding(tap: ShortcutAction({Mod.cmd}, _k('p'))))
-      ..setBinding(k, 0, 'pgdn', KeyBinding(tap: ShortcutAction({Mod.cmd, Mod.shift}, _k('f'))));
-    games.setBinding(k, 0, 'caps', const KeyBinding(tap: DisabledAction()));
+/// Indirizzo di Home Assistant su Jarvis via Tailscale: funziona da casa e da fuori.
+const _jarvis = 'https://jarvis.tail370cac.ts.net:9443';
+
+/// I comandi di Francesco, su tutte le tastiere.
+///
+/// Tieni premuto **Shift destro** (c'è su tutte, SOLIDEE compresa) e premi:
+/// - G → Gestionale
+/// - E → mail del Gestionale
+/// - C → Claude in Safari
+/// - T → 10FastFingers in Safari
+/// - A → Gestione inserzioni di Meta
+/// - L → luci di casa (Home Assistant su Jarvis)
+/// - M → Musica
+///
+/// Se un tasto è già usato, non lo sovrascrive.
+void addPersonalPresets(Profile global) {
+  const d = allKeyboardsId;
+  void put(int layer, String key, KeyBinding b) {
+    if (global.binding(d, layer, key) == null) global.setBinding(d, layer, key, b);
   }
+
+  put(0, 'rshift', const KeyBinding(hold: LayerAction(1)));
+  put(1, 'g', const KeyBinding(tap: OpenUrlAction('https://gestionale.francescoferri.me')));
+  put(1, 'e', const KeyBinding(tap: OpenUrlAction('https://gestionale.francescoferri.me/mail')));
+  put(1, 'c', const KeyBinding(tap: OpenUrlAction('https://claude.ai/new', browser: OpenUrlAction.safari)));
+  put(
+    1,
+    't',
+    const KeyBinding(
+      tap: OpenUrlAction('https://10fastfingers.com/typing-test/italian', browser: OpenUrlAction.safari),
+    ),
+  );
+  put(1, 'a', const KeyBinding(tap: OpenUrlAction('https://adsmanager.facebook.com/adsmanager/manage/campaigns')));
+  put(1, 'l', const KeyBinding(tap: WebhookAction('Luci di casa', '$_jarvis/api/webhook/tocco_luci')));
+  put(1, 'm', const KeyBinding(tap: OpenAppAction('Musica', '/System/Applications/Music.app')));
+}
+
+/// I profili di partenza: esempi da cambiare, non regole.
+/// Le tastiere usano "Tutte le tastiere"; [mouse] è l'id del mouse a cui legare gli esempi.
+List<Profile> seedProfiles({String? mouse}) {
+  const k = allKeyboardsId;
+  final global = Profile(id: 'globale', name: 'Globale', global: true);
+  final figma =
+      Profile(
+          id: 'figma',
+          name: 'Figma',
+          apps: [const AppRef(name: 'Figma', bundleId: 'com.figma.Desktop', path: '/Applications/Figma.app')],
+        )
+        ..setBinding(k, 0, 'pgup', KeyBinding(tap: ShortcutAction({Mod.cmd}, _k('z'))))
+        ..setBinding(k, 0, 'pgdn', KeyBinding(tap: ShortcutAction({Mod.cmd, Mod.shift}, _k('z'))));
+  final code =
+      Profile(
+          id: 'vscode',
+          name: 'VS Code',
+          apps: [
+            const AppRef(
+              name: 'Visual Studio Code',
+              bundleId: 'com.microsoft.VSCode',
+              path: '/Applications/Visual Studio Code.app',
+            ),
+          ],
+        )
+        ..setBinding(k, 0, 'pgup', KeyBinding(tap: ShortcutAction({Mod.cmd}, _k('p'))))
+        ..setBinding(k, 0, 'pgdn', KeyBinding(tap: ShortcutAction({Mod.cmd, Mod.shift}, _k('f'))));
+  final games = Profile(id: 'giochi', name: 'Giochi')
+    ..setBinding(k, 0, 'caps', const KeyBinding(tap: DisabledAction()));
 
   if (mouse != null) {
     final m = mouse;

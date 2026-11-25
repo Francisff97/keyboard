@@ -161,6 +161,9 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   /// Segno sugli eventi creati da Tocco, per non rielaborarli.
   private static let marker: Int64 = 0x70CC0
 
+  /// Id del dispositivo speciale "Tutte le tastiere" (vedi allKeyboardsId in Flutter).
+  static let allKeyboards = "TUTTE"
+
   /// Entro quanto tempo un evento del Mac si considera "lo stesso" visto da IOHID.
   private static let matchWindow: TimeInterval = 0.25
 
@@ -483,12 +486,22 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   /// La trasformazione sparisce al riavvio del Mac e quando Tocco si chiude.
   private func mapSpecialKeys() {
     specialByDevice = [:]
-    for (dev, keys) in config.specialKeys {
+    let groups = config.specialKeys
+    // Quelli di "Tutte le tastiere" valgono anche sulle singole tastiere: hidutil
+    // sostituisce l'elenco intero di un dispositivo, quindi li ripeto in ognuna.
+    let shared = groups.first { $0.0.id == Self.allKeyboards }?.1 ?? []
+    let ordered = groups.sorted { a, b in a.0.id == Self.allKeyboards && b.0.id != Self.allKeyboards }
+    for (dev, own) in ordered {
+      let keys = own + shared.filter { s in !own.contains { $0.mac == s.mac } }
       let entries = keys.map {
         "{\"HIDKeyboardModifierMappingSrc\":\(0x7_0000_0000 + $0.hid),\"HIDKeyboardModifierMappingDst\":\(0x7_0000_0000 + $0.asHid)}"
       }
       let mapping = "{\"UserKeyMapping\":[\(entries.joined(separator: ","))]}"
-      let matching = "{\"VendorID\":\(dev.vendorId),\"ProductID\":\(dev.productId)}"
+      // "Tutte le tastiere": vale per ogni tastiera collegata.
+      let matching =
+        dev.id == Self.allKeyboards
+        ? "{\"PrimaryUsagePage\":1,\"PrimaryUsage\":6}"
+        : "{\"VendorID\":\(dev.vendorId),\"ProductID\":\(dev.productId)}"
       if hidutil(["property", "--matching", matching, "--set", mapping]) {
         specialMapped = true
         specialByDevice[dev.id] = Dictionary(uniqueKeysWithValues: keys.map { ($0.asMac, $0.mac) })
@@ -617,7 +630,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     let device = source(lastKey[code])
     // Tasto speciale trasformato in un tasto F: torno al tasto vero.
     if let original = SpecialKey.byAsMac[code], specialMapped,
-      device.map({ specialByDevice[$0]?[code] != nil }) ?? true
+      specialByDevice[Self.allKeyboards]?[code] != nil || (device.map({ specialByDevice[$0]?[code] != nil }) ?? true)
     {
       code = original.mac
     }
@@ -713,13 +726,15 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   /// profilo dell'app e poi Globale, livello attivo e poi Base.
   /// Un dispositivo non gestito non è in config.devices: i suoi tasti restano normali.
   private func lookup(_ code: Int64, mouse: Bool, device: String?) -> BindingCfg? {
-    let candidates: [String]
+    var candidates: [String]
     if let device {
-      guard config.devices.contains(where: { $0.id == device }) else { return nil }
-      candidates = [device]
+      // Prima la tastiera da cui arriva il tasto, se Tocco la gestisce.
+      candidates = config.devices.contains(where: { $0.id == device }) ? [device] : []
     } else {
-      candidates = config.devices.filter { $0.isMouse == mouse }.map(\.id)
+      candidates = config.devices.filter { $0.isMouse == mouse && $0.id != Self.allKeyboards }.map(\.id)
     }
+    // Poi "Tutte le tastiere", che vale per qualsiasi tastiera.
+    if !mouse { candidates.append(Self.allKeyboards) }
     let bundle = lastApp?.bundleIdentifier ?? ""
     let appProfile = config.profiles.first { !$0.global && $0.bundleIds.contains(bundle) }
     let global = config.profiles.first { $0.global }
@@ -761,7 +776,14 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
       NSWorkspace.shared.openApplication(
         at: URL(fileURLWithPath: a.path), configuration: NSWorkspace.OpenConfiguration())
     case "url":
-      if let url = URL(string: a.url) { NSWorkspace.shared.open(url) }
+      guard let url = URL(string: a.url) else { return }
+      if a.path.isEmpty {
+        NSWorkspace.shared.open(url)
+      } else {
+        // Con un browser preciso (es. Safari), anche se il predefinito è un altro.
+        NSWorkspace.shared.open(
+          [url], withApplicationAt: URL(fileURLWithPath: a.path), configuration: NSWorkspace.OpenConfiguration())
+      }
     case "media":
       postMedia(a.media)
     case "webhook":

@@ -72,7 +72,8 @@ class _Editor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final binding = state.bindingFor(k.id);
-    final inherited = binding == null ? state.inheritedFor(k.id) : null;
+    final inh = binding == null ? state.inheritance(k.id) : null;
+    final inherited = inh?.binding;
     final tap = binding?.tap;
     final hold = binding?.hold;
     final tapKind = tap?.kind ?? ActionKind.normal;
@@ -108,8 +109,8 @@ class _Editor extends StatelessWidget {
           if (inherited != null) ...[
             const SizedBox(height: 16),
             _Note(
-              'Nel profilo Globale: ${[if (inherited.tap != null) inherited.tap!.describe, if (inherited.hold != null) 'tenuto ${inherited.hold!.describe}'].join(', ')}. '
-              'Se lo cambi qui, vale solo in ${state.profile.name}.',
+              'Da ${inh!.from}: ${[if (inherited.tap != null) inherited.tap!.describe, if (inherited.hold != null) 'tenuto ${inherited.hold!.describe}'].join(', ')}. '
+              'Se lo cambi qui, vale solo per ${state.device?.shortName} nel profilo ${state.profile.name}.',
             ),
           ],
           const SizedBox(height: 28),
@@ -254,12 +255,34 @@ class _TapEditor extends StatelessWidget {
           onPick: (app) => state.setTap(OpenAppAction(app.name, app.path)),
         );
       case OpenUrlAction():
-        return _TextEditor(
-          initial: a.url,
-          hint: 'https://',
-          mono: true,
-          help: 'Si apre nel browser predefinito. Va bene anche un link a una cartella o un file (file://).',
-          onChanged: (v) => state.setTap(OpenUrlAction(v.trim())),
+        OpenUrlAction current() => (state.bindingFor(k.id)?.tap as OpenUrlAction?) ?? a;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _TextEditor(
+              initial: a.url,
+              hint: 'https://',
+              mono: true,
+              help: 'Va bene anche un link a una cartella o un file (file://).',
+              onChanged: (v) => state.setTap(OpenUrlAction(v.trim(), browser: current().browser)),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              children: [
+                FDChip(
+                  label: 'Browser predefinito',
+                  selected: a.browser.isEmpty,
+                  onTap: () => state.setTap(OpenUrlAction(current().url)),
+                ),
+                FDChip(
+                  label: 'Safari',
+                  selected: a.browser == OpenUrlAction.safari,
+                  onTap: () => state.setTap(OpenUrlAction(current().url, browser: OpenUrlAction.safari)),
+                ),
+              ],
+            ),
+          ],
         );
       case MediaAction():
         return Wrap(

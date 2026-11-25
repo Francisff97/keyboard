@@ -36,6 +36,9 @@ class DetectedDevice {
 String deviceId(int vendor, int product) =>
     '${vendor.toRadixString(16).padLeft(4, '0')}:${product.toRadixString(16).padLeft(4, '0')}'.toUpperCase();
 
+/// Id del dispositivo speciale "Tutte le tastiere".
+const allKeyboardsId = 'TUTTE';
+
 /// Un dispositivo che Tocco conosce, con le scelte dell'utente.
 class DeviceConfig {
   DeviceConfig({
@@ -46,7 +49,22 @@ class DeviceConfig {
     required this.layoutId,
     this.managed = true,
     this.builtIn = false,
+    this.all = false,
   });
+
+  /// "Tutte le tastiere": le regole messe qui valgono su qualsiasi tastiera,
+  /// anche quelle che non hai mai collegato. Ogni tastiera può poi cambiare
+  /// i singoli tasti nella sua scheda.
+  factory DeviceConfig.allKeyboards() => DeviceConfig(
+    vendorId: 0,
+    productId: 0,
+    name: 'Tutte le tastiere',
+    kind: DeviceKind.keyboard,
+    layoutId: 'ansi',
+    all: true,
+  );
+
+  final bool all;
 
   final int vendorId;
   final int productId;
@@ -66,12 +84,13 @@ class DeviceConfig {
   /// Id usato nei profili e dal motore. Il mouse ha ":M" in fondo: così un
   /// ricevitore che porta sia tastiera sia mouse (Logitech Unifying/Bolt)
   /// diventa due dispositivi separati.
-  String get id => isMouse ? '$baseId:M' : baseId;
+  String get id => all ? allKeyboardsId : (isMouse ? '$baseId:M' : baseId);
   bool get isMouse => kind == DeviceKind.mouse;
   Layout get layout => isMouse ? Layouts.mouse : Layouts.byId(layoutId);
 
   /// Nome corto per le schede (senza "Gaming Keyboard", "USB" e simili).
   String get shortName {
+    if (all) return 'Tutte le tastiere';
     if (_receiver.hasMatch(name)) {
       final brand = vendorId == 0x046D ? 'Logitech ' : '';
       return isMouse ? '${brand}mouse' : '${brand}tastiera';

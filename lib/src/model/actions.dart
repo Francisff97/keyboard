@@ -83,7 +83,7 @@ sealed class KeyAction {
       case 'app':
         return OpenAppAction(j['name'] as String? ?? '', j['path'] as String? ?? '');
       case 'url':
-        return OpenUrlAction(j['url'] as String? ?? '');
+        return OpenUrlAction(j['url'] as String? ?? '', browser: j['path'] as String? ?? '');
       case 'media':
         return MediaAction(MediaKey.values.firstWhere((m) => m.name == j['media'], orElse: () => MediaKey.playPause));
       case 'webhook':
@@ -176,17 +176,23 @@ class OpenAppAction extends KeyAction {
 }
 
 class OpenUrlAction extends KeyAction {
-  const OpenUrlAction(this.url);
+  const OpenUrlAction(this.url, {this.browser = ''});
   final String url;
+
+  /// App con cui aprirlo (es. /Applications/Safari.app). Vuoto = browser predefinito.
+  final String browser;
+
+  static const safari = '/Applications/Safari.app';
 
   @override
   ActionKind get kind => ActionKind.url;
   @override
   String get badge => 'URL';
   @override
-  String get describe => 'Apre ${url.replaceFirst(RegExp(r'^https?://'), '')}';
+  String get describe =>
+      'Apre ${url.replaceFirst(RegExp(r'^https?://'), '')}${browser.contains('Safari') ? ' in Safari' : ''}';
   @override
-  Map<String, Object?> toJson() => {'kind': 'url', 'url': url};
+  Map<String, Object?> toJson() => {'kind': 'url', 'url': url, if (browser.isNotEmpty) 'path': browser};
 }
 
 class MediaAction extends KeyAction {
