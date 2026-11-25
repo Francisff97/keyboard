@@ -1,0 +1,38 @@
+name: Release
+
+# Crea l'app per Mac quando pubblichi un tag, es. v0.1.0
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build macos --release
+      - name: Firma ad hoc, zip e dmg
+        run: |
+          APP=build/macos/Build/Products/Release/Tocco.app
+          codesign --force --deep -s - "$APP"
+          mkdir -p dist
+          ditto -c -k --keepParent "$APP" dist/Tocco-macOS.zip
+          STAGE=$(mktemp -d)
+          cp -R "$APP" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname Tocco -srcfolder "$STAGE" -ov -format UDZO dist/Tocco-macOS.dmg
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/Tocco-macOS.dmg
+            dist/Tocco-macOS.zip

@@ -1,0 +1,32 @@
+name: tocco
+description: "Tocco — la tua tastiera, su misura. Di Francesco Ferri (francescoferri.me)."
+publish_to: 'none'
+
+version: 0.2.0+2
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.1.0
+  url_launcher: ^6.3.3
+  path: ^1.9.1
+  flutter_svg: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/brand/
+
+  fonts:
+    - family: FD Display
+      fonts:
+        - asset: assets/fonts/fddisplay.ttf

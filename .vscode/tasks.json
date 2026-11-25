@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Tocco: crea la versione da scaricare (.dmg)",
+      "type": "shell",
+      "command": "./scripts/build_release.sh",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tocco: avvia in debug",
+      "type": "shell",
+      "command": "flutter run -d macos",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tocco: test",
+      "type": "shell",
+      "command": "flutter test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tocco: pubblica una release su GitHub",
+      "type": "shell",
+      "command": "git tag v${input:version} && git push origin v${input:version}",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "version",
+      "type": "promptString",
+      "description": "Versione da pubblicare (es. 0.2.0)",
+      "default": "0.2.0"
+    }
+  ]
+}
