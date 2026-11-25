@@ -50,6 +50,12 @@ class DevicesChanged extends EngineEvent {
   final List<DetectedDevice> devices;
 }
 
+/// Il motore è stato messo in pausa (o ripreso) dalla barra dei menu.
+class EnabledChanged extends EngineEvent {
+  EnabledChanged(this.enabled);
+  final bool enabled;
+}
+
 class PermissionsChanged extends EngineEvent {
   PermissionsChanged(this.status);
   final EngineStatus status;
@@ -82,6 +88,8 @@ class Engine {
             return DevicesChanged([
               for (final d in (m['devices'] as List?) ?? const []) DetectedDevice.fromMap(d as Map<Object?, Object?>),
             ]);
+          case 'enabled':
+            return EnabledChanged(m['enabled'] == true);
           case 'permissions':
             return PermissionsChanged(EngineStatus.fromMap(m));
         }

@@ -189,6 +189,22 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     clearCapsMapping()
   }
 
+  var isPaused: Bool { !config.enabled }
+
+  /// Freno d'emergenza dalla barra dei menu: ferma tutto e lo dice a Flutter.
+  func setPaused(_ paused: Bool) {
+    config.enabled = !paused
+    if paused {
+      stopTap()
+      clearCapsMapping()
+    } else {
+      for dev in config.capsLockDevices { mapCapsLock(dev) }
+      startTap()
+    }
+    send(["type": "enabled", "enabled": !paused])
+    send(statusMap())
+  }
+
   // MARK: Canale metodi
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -329,6 +345,13 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
       engine.recordInput(value)
     }
     IOHIDManagerRegisterInputValueCallback(manager, input, ctx)
+    // Solo tasti e pulsanti: il movimento del mouse e la rotella non servono
+    // e arrivano centinaia di volte al secondo.
+    let inputMatching: [[String: Any]] = [
+      [kIOHIDElementUsagePageKey: kHIDPage_KeyboardOrKeypad],
+      [kIOHIDElementUsagePageKey: kHIDPage_Button],
+    ]
+    IOHIDManagerSetInputValueMatchingMultiple(manager, inputMatching as CFArray)
 
     IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
     IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))

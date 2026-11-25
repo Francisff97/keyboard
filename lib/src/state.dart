@@ -129,7 +129,8 @@ class AppState extends ChangeNotifier {
     connected = await engine.devices();
     if (stored == null) {
       // Primo avvio: riconosco i dispositivi e lego gli esempi al primo di ogni tipo.
-      final c = StoredConfig(profiles: [], devices: []);
+      // Il motore parte in pausa: lo accendi tu quando hai visto che è tutto a posto.
+      final c = StoredConfig(profiles: [], devices: [], enabled: false);
       _config = c;
       _mergeConnected(firstRun: true);
       final kb = c.devices.where((d) => d.managed && !d.isMouse).firstOrNull;
@@ -174,6 +175,9 @@ class AppState extends ChangeNotifier {
         _mergeConnected(firstRun: false);
       case PermissionsChanged(:final status):
         this.status = status;
+      case EnabledChanged(:final enabled):
+        _config?.enabled = enabled;
+        _saveSoon();
     }
     notifyListeners();
   }
