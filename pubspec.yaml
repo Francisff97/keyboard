@@ -2,7 +2,7 @@ name: tocco
 description: "Tocco — la tua tastiera, su misura. Di Francesco Ferri (francescoferri.me)."
 publish_to: 'none'
 
-version: 0.2.0+2
+version: 0.3.0+3
 
 environment:
   sdk: ^3.14.0

@@ -41,8 +41,8 @@
     {
       "id": "version",
       "type": "promptString",
-      "description": "Versione da pubblicare (es. 0.2.0)",
-      "default": "0.2.0"
+      "description": "Versione da pubblicare (es. 0.3.1)",
+      "default": "0.3.1"
     }
   ]
 }
