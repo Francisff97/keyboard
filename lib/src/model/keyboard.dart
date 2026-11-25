@@ -77,6 +77,21 @@ class KeyDef {
   final String? note;
 
   bool get onBoard => x >= 0;
+
+  /// Modificatori di sinistra: per ora non si possono cambiare.
+  bool get unsupported => const {'lshift', 'lctrl', 'lalt', 'lgui'}.contains(id);
+
+  /// Avviso per Caps Lock e i modificatori di destra: se gli dai una funzione,
+  /// perdono quella normale (vengono trasformati in un tasto F nascosto).
+  String? get specialNote => switch (id) {
+    'caps' => 'Se gli dai una funzione, finché Tocco è attivo non fa più il maiuscolo fisso.',
+    'rshift' =>
+      'Se gli dai una funzione, finché Tocco è attivo non fa più Shift: per le maiuscole usa lo Shift di sinistra.',
+    'rctrl' => 'Se gli dai una funzione, finché Tocco è attivo non fa più Ctrl: usa quello di sinistra.',
+    'ralt' => 'Se gli dai una funzione, finché Tocco è attivo non fa più Alt (⌥): usa quello di sinistra.',
+    'rgui' => 'Se gli dai una funzione, finché Tocco è attivo non fa più ⌘: usa quello di sinistra.',
+    _ => null,
+  };
   String get displayName => name ?? label;
   Rect get rect => Rect.fromLTWH(x, y, w, h);
 
@@ -539,7 +554,16 @@ class Layouts {
   static KeyDef? target(String id) => ansi.byId(id) ?? solidee65.byId(id);
 
   /// Dal tasto fisico premuto (PhysicalKeyboardKey.usbHidUsage) al tasto.
-  static KeyDef? byFlutterUsage(int usage) => _byUsage[usage];
+  /// I tasti speciali trasformati dal motore arrivano come F16–F20: li riporto a quelli veri.
+  static KeyDef? byFlutterUsage(int usage) => _byUsage[_special[usage] ?? usage];
+
+  static const _special = {
+    0x0007006D: 0x00070039, // F18 → Caps Lock
+    0x0007006E: 0x000700E5, // F19 → Shift destro
+    0x0007006F: 0x000700E4, // F20 → Ctrl destro
+    0x0007006C: 0x000700E6, // F17 → Alt destro
+    0x0007006B: 0x000700E7, // F16 → ⌘ destro
+  };
 
   static final Map<int, KeyDef> _byUsage = {
     for (final k in [...solidee65.keys, ...ansi.keys])

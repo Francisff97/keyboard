@@ -131,4 +131,16 @@ void main() {
     expect(again.devices.single.id, 'AAAA:0001');
     expect(again.profiles.first.binding('AAAA:0001', 0, 'caps')?.hold, isA<LayerAction>());
   });
+
+  test('modificatori: quelli di sinistra non vanno al motore, quelli di destra sì', () {
+    final kb = DeviceConfig(vendorId: 1, productId: 1, name: 'x', kind: DeviceKind.keyboard, layoutId: 'ansi');
+    final p = Profile(id: 'x', name: 'x')
+      ..setBinding(kb.id, 0, 'lshift', const KeyBinding(tap: DisabledAction()))
+      ..setBinding(kb.id, 0, 'rshift', const KeyBinding(hold: MediaAction(MediaKey.mute)));
+    final base = ((p.toEngine([kb])['devices'] as Map)[kb.id] as List).first as Map;
+    expect(base.containsKey('56'), isFalse);
+    expect(base.containsKey('60'), isTrue);
+    // Shift destro trasformato in F19 dal motore: sul disegno si accende ancora Shift destro.
+    expect(Layouts.byFlutterUsage(0x0007006E)?.id, 'rshift');
+  });
 }

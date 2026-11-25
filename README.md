@@ -82,9 +82,9 @@ La rotella che scorre e i tilt laterali restano come sono.
 - **Fn e luci della tastiera** sono gestiti dal firmware della tastiera e non arrivano al Mac.
 - Tocco funziona **solo sul Mac**, con l'app attiva. Su un altro computer o su una console tastiera e mouse sono quelli di fabbrica.
 - **Riconoscere il dispositivo**: macOS non dice da quale tastiera arriva un tasto, quindi Tocco incrocia ogni tasto con quello che ha visto il driver HID nello stesso istante. Funziona bene, ma serve il permesso Monitoraggio input. Senza quel permesso, le regole valgono per tutti i dispositivi dello stesso tipo.
-- **Caps Lock** viene trasformato in F18 con `hidutil`, solo sulla tastiera interessata, perché macOS lo tratta come un interruttore. Quando Tocco si chiude rimette tutto com'era, e cancella anche eventuali mappature fatte a mano con `hidutil`.
+- La trasformazione vale solo sulla tastiera interessata e quando Tocco si chiude torna tutto com'era. Attenzione: cancella anche eventuali mappature fatte a mano con `hidutil`.
 - Nei **campi password** macOS blocca la lettura dei tasti: lì Tocco non cambia niente.
-- I modificatori (Ctrl, Alt, ⌘, Shift) per ora non si possono usare come tasto di partenza.
+- **Caps Lock e i modificatori di destra** (Shift, Ctrl, Alt, ⌘) si possono cambiare, ma finché Tocco è attivo perdono la loro funzione normale: `hidutil` li trasforma in un tasto F nascosto (F16–F20). Per Shift, Ctrl e così via usa quelli di sinistra, che per ora non si possono cambiare.
 
 ## Per sviluppatori
 

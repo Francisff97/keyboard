@@ -47,9 +47,7 @@ List<Profile> seedProfiles({String? keyboard, String? mouse}) {
     code
       ..setBinding(k, 0, 'pgup', KeyBinding(tap: ShortcutAction({Mod.cmd}, _k('p'))))
       ..setBinding(k, 0, 'pgdn', KeyBinding(tap: ShortcutAction({Mod.cmd, Mod.shift}, _k('f'))));
-    games
-      ..setBinding(k, 0, 'lgui', const KeyBinding(tap: DisabledAction()))
-      ..setBinding(k, 0, 'caps', const KeyBinding(tap: DisabledAction()));
+    games.setBinding(k, 0, 'caps', const KeyBinding(tap: DisabledAction()));
   }
 
   if (mouse != null) {

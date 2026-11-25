@@ -91,7 +91,8 @@ class Profile {
             for (final l in layers)
               {
                 for (final e in l.entries)
-                  if (dev.layout.byId(e.key) case final k? when !k.firmware) '${k.mac}': e.value.toEngine(),
+                  if (dev.layout.byId(e.key) case final k? when !k.firmware && !k.unsupported)
+                    '${k.mac}': e.value.toEngine(),
               },
           ],
     },

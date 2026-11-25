@@ -97,46 +97,59 @@ class _Editor extends StatelessWidget {
           style: FD.monoStyle(size: 9.5),
         ),
         if (k.note != null) ...[const SizedBox(height: 16), _Note(k.note!)],
-        if (inherited != null) ...[
+        if (k.specialNote != null) ...[const SizedBox(height: 16), _Note(k.specialNote!)],
+        if (k.unsupported) ...[
           const SizedBox(height: 16),
-          _Note(
-            'Nel profilo Globale: ${[if (inherited.tap != null) inherited.tap!.describe, if (inherited.hold != null) 'tenuto ${inherited.hold!.describe}'].join(', ')}. '
-            'Se lo cambi qui, vale solo in ${state.profile.name}.',
+          const _Note(
+            'Per ora i modificatori di sinistra non si possono cambiare: macOS li gestisce in modo speciale. '
+            'Usa quelli di destra, oppure Caps Lock.',
           ),
-        ],
-        const SizedBox(height: 28),
-
-        const SectionLabel('01', 'Quando lo premi'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final kind in ActionKind.values.where((a) => a.tap))
-              FDChip(label: kind.label, selected: tapKind == kind, onTap: () => state.setTap(_defaultFor(kind, state))),
+        ] else ...[
+          if (inherited != null) ...[
+            const SizedBox(height: 16),
+            _Note(
+              'Nel profilo Globale: ${[if (inherited.tap != null) inherited.tap!.describe, if (inherited.hold != null) 'tenuto ${inherited.hold!.describe}'].join(', ')}. '
+              'Se lo cambi qui, vale solo in ${state.profile.name}.',
+            ),
           ],
-        ),
-        const SizedBox(height: 18),
-        _TapEditor(state: state, k: k, action: tap),
-        const SizedBox(height: 36),
+          const SizedBox(height: 28),
 
-        if (!mouse) ...[
-          const SectionLabel('02', 'Quando lo tieni premuto'),
+          const SectionLabel('01', 'Quando lo premi'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              FDChip(label: 'Niente', selected: hold == null, onTap: () => state.setHold(null)),
-              for (final kind in ActionKind.values.where((a) => a.hold))
+              for (final kind in ActionKind.values.where((a) => a.tap))
                 FDChip(
                   label: kind.label,
-                  selected: hold?.kind == kind,
-                  onTap: () => state.setHold(_defaultFor(kind, state)),
+                  selected: tapKind == kind,
+                  onTap: () => state.setTap(_defaultFor(kind, state)),
                 ),
             ],
           ),
           const SizedBox(height: 18),
-          _HoldEditor(state: state, action: hold),
-          const SizedBox(height: 32),
+          _TapEditor(state: state, k: k, action: tap),
+          const SizedBox(height: 36),
+
+          if (!mouse) ...[
+            const SectionLabel('02', 'Quando lo tieni premuto'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FDChip(label: 'Niente', selected: hold == null, onTap: () => state.setHold(null)),
+                for (final kind in ActionKind.values.where((a) => a.hold))
+                  FDChip(
+                    label: kind.label,
+                    selected: hold?.kind == kind,
+                    onTap: () => state.setHold(_defaultFor(kind, state)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _HoldEditor(state: state, action: hold),
+            const SizedBox(height: 32),
+          ],
         ],
         if (binding != null)
           Align(

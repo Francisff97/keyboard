@@ -85,15 +85,41 @@ struct EngineConfig {
   /// tastiera arriva un tasto.
   var hidToMac: [Int: Int64] = [:]
 
-  /// Le tastiere che usano Caps Lock in qualche profilo (va rimappato con hidutil).
-  var capsLockDevices: [DeviceCfg] {
-    devices.filter { dev in
-      !dev.isMouse
-        && profiles.contains { p in
-          p.devices[dev.id]?.contains { $0[KeyEngine.capsLock] != nil } ?? false
-        }
+  /// Per ogni tastiera, i tasti "speciali" (Caps Lock e modificatori di destra)
+  /// usati in qualche profilo: vanno trasformati in un tasto F con hidutil.
+  var specialKeys: [(DeviceCfg, [SpecialKey])] {
+    devices.compactMap { dev in
+      guard !dev.isMouse else { return nil }
+      let used = SpecialKey.all.filter { key in
+        profiles.contains { p in p.devices[dev.id]?.contains { $0[key.mac] != nil } ?? false }
+      }
+      return used.isEmpty ? nil : (dev, used)
     }
   }
+}
+
+/// Tasti che macOS non manda come tasti normali (Caps Lock è un interruttore,
+/// Shift/Ctrl/Alt/⌘ sono modificatori). Per usarli in Tocco, hidutil li
+/// trasforma in tasti F che nessuna tastiera ha (F16–F20) e il motore li
+/// riporta al tasto originale. Finché Tocco è attivo, perdono la loro funzione.
+struct SpecialKey {
+  /// keycode Mac del tasto vero e di quello in cui viene trasformato
+  let mac: Int64
+  let asMac: Int64
+  /// codici HID per hidutil
+  let hid: Int
+  let asHid: Int
+
+  static let all = [
+    SpecialKey(mac: 57, asMac: 79, hid: 0x39, asHid: 0x6D),  // Caps Lock → F18
+    SpecialKey(mac: 60, asMac: 80, hid: 0xE5, asHid: 0x6E),  // Shift destro → F19
+    SpecialKey(mac: 62, asMac: 90, hid: 0xE4, asHid: 0x6F),  // Ctrl destro → F20
+    SpecialKey(mac: 61, asMac: 64, hid: 0xE6, asHid: 0x6C),  // Alt destro → F17
+    SpecialKey(mac: 54, asMac: 106, hid: 0xE7, asHid: 0x6B),  // ⌘ destro → F16
+  ]
+
+  static let byMac = Dictionary(uniqueKeysWithValues: all.map { ($0.mac, $0) })
+  static let byAsMac = Dictionary(uniqueKeysWithValues: all.map { ($0.asMac, $0) })
 }
 
 /// Un tasto con la funzione "tenuto premuto", mentre è giù.
@@ -121,10 +147,6 @@ private struct Seen {
 final class KeyEngine: NSObject, FlutterStreamHandler {
   static let shared = KeyEngine()
 
-  static let capsLock: Int64 = 57
-  /// Caps Lock viene trasformato in F18 da hidutil, perché macOS lo tratta
-  /// come un interruttore e non come un tasto normale.
-  static let f18: Int64 = 79
 
   /// Segno sugli eventi creati da Tocco, per non rielaborarli.
   private static let marker: Int64 = 0x70CC0
@@ -139,7 +161,9 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
 
   private(set) var config = EngineConfig()
   private var lastApp: NSRunningApplication?
-  private var capsMapped = false
+  private var specialMapped = false
+  /// Su quali tastiere i tasti speciali sono trasformati (id → keycode F → keycode vero).
+  private var specialByDevice: [String: [Int64: Int64]] = [:]
 
   private var held: [Int64: HeldKey] = [:]
   private var layerStack: [Int] = []
@@ -186,7 +210,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
 
   func shutdown() {
     stopTap()
-    clearCapsMapping()
+    clearSpecialKeys()
   }
 
   var isPaused: Bool { !config.enabled }
@@ -196,9 +220,9 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     config.enabled = !paused
     if paused {
       stopTap()
-      clearCapsMapping()
+      clearSpecialKeys()
     } else {
-      for dev in config.capsLockDevices { mapCapsLock(dev) }
+      mapSpecialKeys()
       startTap()
     }
     send(["type": "enabled", "enabled": !paused])
@@ -371,8 +395,8 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     if page == kHIDPage_KeyboardOrKeypad, let mac = config.hidToMac[usage] {
       let seen = Seen(device: id, time: now)
       lastKey[mac] = seen
-      // Caps Lock rimappato: macOS manda F18, ma IOHID vede ancora Caps Lock.
-      if mac == Self.capsLock { lastKey[Self.f18] = seen }
+      // Tasto speciale trasformato: macOS manda il tasto F, IOHID vede quello vero.
+      if let special = SpecialKey.byMac[mac] { lastKey[special.asMac] = seen }
     } else if page == kHIDPage_Button, usage >= 1 {
       // I mouse hanno ":M" in fondo all'id (vedi DeviceConfig.id in Flutter).
       lastButton[Int64(usage - 1)] = Seen(device: "\(id):M", time: now)
@@ -425,9 +449,9 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     }
     config = c
     resetHeld()
-    clearCapsMapping()
+    clearSpecialKeys()
     if c.enabled {
-      for dev in c.capsLockDevices { mapCapsLock(dev) }
+      mapSpecialKeys()
       startTap()
     } else {
       stopTap()
@@ -435,22 +459,29 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     send(statusMap())
   }
 
-  /// Caps Lock → F18 con hidutil, solo sulla tastiera indicata.
-  /// La mappatura sparisce al riavvio del Mac e quando Tocco si chiude.
-  private func mapCapsLock(_ dev: DeviceCfg) {
-    let mapping =
-      #"{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":0x700000039,"HIDKeyboardModifierMappingDst":0x70000006D}]}"#
-    let matching = "{\"VendorID\":\(dev.vendorId),\"ProductID\":\(dev.productId)}"
-    if hidutil(["property", "--matching", matching, "--set", mapping]) {
-      capsMapped = true
+  /// Trasforma i tasti speciali usati nei profili, solo sulle tastiere interessate.
+  /// La trasformazione sparisce al riavvio del Mac e quando Tocco si chiude.
+  private func mapSpecialKeys() {
+    specialByDevice = [:]
+    for (dev, keys) in config.specialKeys {
+      let entries = keys.map {
+        "{\"HIDKeyboardModifierMappingSrc\":\(0x7_0000_0000 + $0.hid),\"HIDKeyboardModifierMappingDst\":\(0x7_0000_0000 + $0.asHid)}"
+      }
+      let mapping = "{\"UserKeyMapping\":[\(entries.joined(separator: ","))]}"
+      let matching = "{\"VendorID\":\(dev.vendorId),\"ProductID\":\(dev.productId)}"
+      if hidutil(["property", "--matching", matching, "--set", mapping]) {
+        specialMapped = true
+        specialByDevice[dev.id] = Dictionary(uniqueKeysWithValues: keys.map { ($0.asMac, $0.mac) })
+      }
     }
   }
 
-  /// Toglie le mappature di Tocco (e, attenzione, anche altre fatte a mano con hidutil).
-  private func clearCapsMapping() {
-    guard capsMapped else { return }
+  /// Toglie le trasformazioni (e, attenzione, anche altre fatte a mano con hidutil).
+  private func clearSpecialKeys() {
+    specialByDevice = [:]
+    guard specialMapped else { return }
     hidutil(["property", "--set", #"{"UserKeyMapping":[]}"#])
-    capsMapped = false
+    specialMapped = false
   }
 
   @discardableResult
@@ -563,7 +594,12 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   private func processKey(down: Bool, event: CGEvent) -> Unmanaged<CGEvent>? {
     var code = event.getIntegerValueField(.keyboardEventKeycode)
     let device = source(lastKey[code])
-    if capsMapped && code == Self.f18 { code = Self.capsLock }
+    // Tasto speciale trasformato in un tasto F: torno al tasto vero.
+    if let original = SpecialKey.byAsMac[code], specialMapped,
+      device.map({ specialByDevice[$0]?[code] != nil }) ?? true
+    {
+      code = original.mac
+    }
     let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
 
     // --- Rilascio ---------------------------------------------------------
