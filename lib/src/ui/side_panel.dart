@@ -180,7 +180,7 @@ class _DeviceRow extends StatelessWidget {
     final d = device;
     final selected = d.managed;
     final meta = [
-      d.isMouse ? 'Mouse' : (d.layoutId == 'solidee65' ? 'Tastiera 65%' : 'Tastiera'),
+      d.isMouse ? 'Mouse' : (d.layoutId == 'solidee65' ? 'SOLIDEE 65%' : 'Tastiera standard'),
       d.id,
       if (d.builtIn) 'Integrata',
       if (!connected) 'Scollegato',

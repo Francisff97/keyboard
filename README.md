@@ -45,13 +45,17 @@ All'avvio Tocco chiede a macOS quali tastiere e mouse sono collegati. Per ciascu
 
 **Tastiera o mouse?** Molti mouse da gioco si presentano anche come tastiera (per le macro) e molte tastiere anche come mouse (per manopole e tasti media). Quando c'è il dubbio, decide il nome: "Mouse", "G502", "MX Master", "DeathAdder"… vuol dire mouse.
 
-**Che tastiera?** macOS non dice quanti tasti ha una tastiera, quindi Tocco guarda il nome:
-- nome con "65", "68" o "SOLIDEE" → **tastiera 65%** (68 tasti);
-- tutto il resto → **tastiera standard** (ANSI, 104 tasti con tastierino numerico).
+**Che tastiera?** macOS non dice quanti tasti ha una tastiera, quindi:
+- la **SOLIDEE 65%** (68 tasti) viene disegnata con la sua grafica: tasti blu e neri, scritte azzurre, sole rosso e onde;
+- **tutte le altre tastiere** usano la **tastiera standard** (ANSI, 104 tasti con tastierino numerico).
 
-Se sbaglia, lo correggi in un clic: **⇄ È un mouse / È una tastiera** nella colonna a sinistra, e **Layout 65% / Standard** sopra il disegno. Le modifiche ai tasti restano: un tasto ha lo stesso nome in entrambi i layout.
+Tocco riconosce la SOLIDEE dal nome. Molte tastiere economiche però si presentano con un nome generico, tipo "Gaming Keyboard". In quel caso scegli **SOLIDEE 65%** sopra il disegno, una volta sola: Tocco se la ricorda dal suo VendorID:ProductID.
 
-Al primo avvio Tocco gestisce tutti i dispositivi esterni e lascia stare quelli integrati del Mac. Quelli che colleghi dopo compaiono nella lista e li attivi con la spunta.
+Tastiere e mouse esterni compaiono da soli come schede sopra il disegno. Si apre quella collegata: a casa la SOLIDEE, al lavoro la tastiera che c'è. Finché non cambi un tasto, un dispositivo resta com'è. Quelli integrati del Mac stanno nella lista a sinistra e li attivi con la spunta. Se Tocco scambia un mouse per una tastiera, lo correggi con **⇄ È un mouse / È una tastiera**. Le modifiche ai tasti restano anche cambiando layout, perché un tasto ha lo stesso nome in entrambi.
+
+### In arrivo
+- Scegliere la forma della tastiera (60%, 65%, 75%, TKL, completa, ISO italiana) e partire da un modello standard di quella misura.
+- Luci: solo per le tastiere che le fanno comandare dal computer (QMK/VIA e simili). Le altre, come la SOLIDEE, le gestiscono da sole.
 
 ## Il mouse
 

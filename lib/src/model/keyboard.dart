@@ -503,7 +503,7 @@ class Layouts {
 
   static final solidee65 = Layout(
     id: 'solidee65',
-    name: '65% · 68 tasti',
+    name: 'SOLIDEE 65% · 68 tasti',
     kind: DeviceKind.keyboard,
     keys: _place([for (var y = 0; y < _solideeRows.length; y++) (y.toDouble(), _solideeRows[y])]),
     width: 16,
@@ -553,10 +553,12 @@ class Layouts {
   };
 
   /// Indovina il layout di una tastiera dal nome che dà a macOS.
-  /// Tutto quello che non sembra una 65% usa la tastiera standard.
+  /// La grafica SOLIDEE solo per la SOLIDEE; tutte le altre tastiere usano
+  /// la standard. Se la SOLIDEE si presenta con un nome generico (capita con
+  /// le tastiere economiche), la scegli a mano una volta e Tocco se la
+  /// ricorda dal suo VendorID:ProductID.
   static Layout guess(String name) {
-    final n = name.toLowerCase();
-    if (n.contains('solidee') || RegExp(r'(^|\D)(65|68)(%|\D|$)').hasMatch(n)) return solidee65;
+    if (name.toLowerCase().contains('solidee')) return solidee65;
     return ansi;
   }
 }

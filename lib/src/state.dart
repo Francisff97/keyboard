@@ -43,10 +43,16 @@ class AppState extends ChangeNotifier {
   bool isConnected(DeviceConfig d) => connected.any((c) => c.id == d.id);
 
   String? _deviceId;
+
+  /// Il dispositivo mostrato: quello scelto nelle schede, altrimenti la prima
+  /// tastiera collegata (a casa la SOLIDEE, al lavoro quella che c'è).
   DeviceConfig? get device {
     final managed = managedDevices;
     if (managed.isEmpty) return null;
-    return managed.firstWhere((d) => d.id == _deviceId, orElse: () => managed.first);
+    final chosen = managed.where((d) => d.id == _deviceId).firstOrNull;
+    if (chosen != null) return chosen;
+    final online = managed.where(isConnected).toList();
+    return online.where((d) => !d.isMouse).firstOrNull ?? online.firstOrNull ?? managed.first;
   }
 
   Layout get layout => device?.layout ?? Layouts.ansi;
@@ -84,9 +90,9 @@ class AppState extends ChangeNotifier {
     for (final d in connected) {
       final known = c.devices.where((k) => k.id == d.id).firstOrNull;
       if (known == null) {
-        // Al primo avvio gestisco tutto quello che è esterno; dopo, i nuovi
-        // dispositivi compaiono nella lista ma li attivi tu.
-        c.devices.add(DeviceConfig.auto(d, managed: firstRun && !d.builtIn));
+        // Tastiere e mouse esterni nuovi compaiono subito come schede: finché
+        // non cambi un tasto restano come sono. Quelli integrati del Mac no.
+        c.devices.add(DeviceConfig.auto(d, managed: !d.builtIn));
       } else if (known.name.isEmpty) {
         known.name = d.name;
       }

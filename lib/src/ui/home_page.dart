@@ -336,7 +336,7 @@ class _DevicesRow extends StatelessWidget {
             Tooltip(
               message: l.name,
               child: FDChip(
-                label: l.id == 'solidee65' ? '65%' : 'Standard',
+                label: l.id == 'solidee65' ? 'SOLIDEE 65%' : 'Standard',
                 selected: d.layoutId == l.id,
                 onTap: () => state.setLayout(d, l.id),
               ),

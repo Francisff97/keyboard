@@ -48,7 +48,9 @@ void main() {
         DeviceConfig.auto(DetectedDevice(name: name, vendorId: 1, productId: 2, keyboard: kb, mouse: mouse));
 
     expect(auto('SOLIDEE 68 Gaming Keyboard', mouse: true).layoutId, 'solidee65');
-    expect(auto('Keychron K6 65%').layoutId, 'solidee65');
+    expect(auto('Keychron K6 65%').layoutId, 'ansi');
+    expect(auto('Gaming Keyboard').layoutId, 'ansi');
+    expect(auto('MX Keys').layoutId, 'ansi');
     expect(auto('Apple Magic Keyboard').layoutId, 'ansi');
     expect(auto('Generic USB Keyboard').layoutId, 'ansi');
     expect(auto('G502 HERO Gaming Mouse', mouse: true).kind, DeviceKind.mouse);
