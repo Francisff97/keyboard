@@ -188,6 +188,8 @@ class _Center extends StatelessWidget {
             ),
           const SizedBox(height: 18),
 
+          _EngineBanner(state: state),
+
           // Il dispositivo disegnato.
           if (state.device == null)
             Container(
@@ -299,6 +301,63 @@ class _AppsRow extends StatelessWidget {
           ),
         FDTextLink(label: '+ Aggiungi app', onTap: onAdd),
       ],
+    );
+  }
+}
+
+/// Dice chiaramente quando i tasti non possono cambiare, e perché.
+class _EngineBanner extends StatelessWidget {
+  const _EngineBanner({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state.status;
+    final (String text, String? action, VoidCallback? onTap) = switch (()) {
+      _ when !state.enabled => (
+        'Motore in pausa: i tasti non cambiano ancora. Puoi provarli lo stesso, si accendono sul disegno.',
+        'Accendi',
+        () => state.setEnabled(true),
+      ),
+      _ when !s.native => ('Anteprima: il motore non risponde, quindi i tasti non cambiano.', null, null),
+      _ when !s.accessibility => (
+        'Manca il permesso Accessibilità: senza, macOS non lascia cambiare i tasti. '
+            'Dopo averlo dato, chiudi e riapri Tocco.',
+        'Apri impostazioni',
+        () => state.engine.openPrivacySettings('accessibility'),
+      ),
+      _ when !s.running => (
+        'Il motore non è partito. Se hai appena ricompilato, togli Tocco da Accessibilità e rimettilo.',
+        'Apri impostazioni',
+        () => state.engine.openPrivacySettings('accessibility'),
+      ),
+      _ when !s.inputMonitoring => (
+        'Manca Monitoraggio input: i tasti cambiano, ma su tutte le tastiere insieme.',
+        'Apri impostazioni',
+        () => state.engine.openPrivacySettings('inputMonitoring'),
+      ),
+      _ => ('', null, null),
+    };
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: FD.danger.withValues(alpha: 0.08),
+        border: Border.all(color: FD.danger.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 12.5, height: 1.4, color: FD.text)),
+          ),
+          if (action != null) ...[
+            const SizedBox(width: 16),
+            FDTextLink(label: action, arrow: true, size: 10, onTap: onTap!),
+          ],
+        ],
+      ),
     );
   }
 }

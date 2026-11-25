@@ -5,7 +5,16 @@
       "label": "Tocco: crea la versione da scaricare (.dmg)",
       "type": "shell",
       "command": "./scripts/build_release.sh",
-      "group": { "kind": "build", "isDefault": true },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tocco: compila e apri l'app (per provare i tasti)",
+      "type": "shell",
+      "command": "flutter build macos --debug && open build/macos/Build/Products/Debug/Tocco.app",
       "problemMatcher": []
     },
     {

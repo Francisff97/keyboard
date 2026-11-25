@@ -51,6 +51,8 @@ All'avvio Tocco chiede a macOS quali tastiere e mouse sono collegati. Per ciascu
 
 Tocco riconosce la SOLIDEE dal nome. Molte tastiere economiche però si presentano con un nome generico, tipo "Gaming Keyboard". In quel caso scegli **SOLIDEE 65%** sopra il disegno, una volta sola: Tocco se la ricorda dal suo VendorID:ProductID.
 
+I ricevitori senza fili che portano tastiera e mouse insieme (Logitech Unifying, Bolt, Lightspeed) diventano due schede: una per la tastiera e una per il mouse.
+
 Tastiere e mouse esterni compaiono da soli come schede sopra il disegno. Si apre quella collegata: a casa la SOLIDEE, al lavoro la tastiera che c'è. Finché non cambi un tasto, un dispositivo resta com'è. Quelli integrati del Mac stanno nella lista a sinistra e li attivi con la spunta. Se Tocco scambia un mouse per una tastiera, lo correggi con **⇄ È un mouse / È una tastiera**. Le modifiche ai tasti restano anche cambiando layout, perché un tasto ha lo stesso nome in entrambi.
 
 ### In arrivo
@@ -104,7 +106,13 @@ In VS Code ci sono già i task (**Terminale → Esegui attività…**):
 - **Tocco: test**
 - **Tocco: pubblica una release su GitHub**: crea un tag `vX.Y.Z`, poi GitHub Actions costruisce .dmg e .zip e li allega alla release
 
-In debug i permessi valgono per la build di Xcode. Se dopo una ricompilazione i tasti smettono di funzionare, togli Tocco dalle liste di Accessibilità e Monitoraggio input e rimettilo.
+**Permessi durante lo sviluppo**: con `flutter run` l'app parte come processo figlio di VS Code o del Terminale, e macOS controlla i permessi di *quelli*, non di Tocco. Per provare davvero i tasti, compila e apri l'app:
+
+```bash
+flutter build macos --debug && open build/macos/Build/Products/Debug/Tocco.app
+```
+
+C'è anche il task **Tocco: compila e apri l'app**. Ogni ricompilazione cambia la firma dell'app: se i tasti smettono di funzionare, togli Tocco da Accessibilità e Monitoraggio input (−) e rimettilo (+). Se qualcosa manca, Tocco lo dice in rosso sopra il disegno.
 
 ### Com'è fatta
 
@@ -144,7 +152,7 @@ I layout stanno in `lib/src/model/keyboard.dart`. Un layout è una lista di tast
 
 | | |
 | --- | --- |
-| Salva e applica | `⌘S` |
+| Applica subito (le modifiche si applicano comunque da sole) | `⌘S` |
 | Livello Base / 1 / 2 | `⌘1` `⌘2` `⌘3` |
 
 ---

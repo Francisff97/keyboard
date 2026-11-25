@@ -60,12 +60,22 @@ class DeviceConfig {
   bool managed;
   final bool builtIn;
 
-  String get id => deviceId(vendorId, productId);
+  /// VendorID:ProductID, come lo vede macOS.
+  String get baseId => deviceId(vendorId, productId);
+
+  /// Id usato nei profili e dal motore. Il mouse ha ":M" in fondo: così un
+  /// ricevitore che porta sia tastiera sia mouse (Logitech Unifying/Bolt)
+  /// diventa due dispositivi separati.
+  String get id => isMouse ? '$baseId:M' : baseId;
   bool get isMouse => kind == DeviceKind.mouse;
   Layout get layout => isMouse ? Layouts.mouse : Layouts.byId(layoutId);
 
   /// Nome corto per le schede (senza "Gaming Keyboard", "USB" e simili).
   String get shortName {
+    if (_receiver.hasMatch(name)) {
+      final brand = vendorId == 0x046D ? 'Logitech ' : '';
+      return isMouse ? '${brand}mouse' : '${brand}tastiera';
+    }
     var n = name.replaceAll(RegExp(r'\b(gaming|wireless|usb|keyboard|mouse|receiver)\b', caseSensitive: false), '');
     n = n.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (n.isEmpty) n = isMouse ? 'Mouse' : 'Tastiera';
@@ -76,6 +86,27 @@ class DeviceConfig {
     r'mouse|\bg ?[3-9]\d\d\b|mx ?master|mx ?anywhere|superlight|deathadder|viper|basilisk|trackball|\blift\b|pulsefire',
     caseSensitive: false,
   );
+
+  static final _receiver = RegExp(r'receiver|unifying|\bbolt\b|lightspeed|nano', caseSensitive: false);
+
+  /// Ricevitore senza fili che porta tastiera e mouse insieme?
+  static bool isReceiver(DetectedDevice d) => d.keyboard && d.mouse && _receiver.hasMatch(d.name);
+
+  /// Uno o due dispositivi per ogni periferica collegata: i ricevitori diventano
+  /// una tastiera e un mouse, tutto il resto un dispositivo solo.
+  static List<DeviceConfig> fromDetected(DetectedDevice d, {bool managed = true}) {
+    if (!isReceiver(d)) return [auto(d, managed: managed)];
+    DeviceConfig make(DeviceKind kind) => DeviceConfig(
+      vendorId: d.vendorId,
+      productId: d.productId,
+      name: d.name,
+      kind: kind,
+      layoutId: kind == DeviceKind.mouse ? 'mouse' : 'ansi',
+      managed: managed,
+      builtIn: d.builtIn,
+    );
+    return [make(DeviceKind.keyboard), make(DeviceKind.mouse)];
+  }
 
   /// Riconoscimento automatico: mouse o tastiera, e quale tastiera.
   /// Molti mouse da gioco si presentano anche come tastiera (per le macro) e

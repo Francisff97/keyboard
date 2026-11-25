@@ -366,13 +366,16 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     let device = IOHIDElementGetDevice(element)
     let vendor = (IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? NSNumber)?.intValue ?? 0
     let product = (IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? NSNumber)?.intValue ?? 0
-    let seen = Seen(device: Self.deviceId(vendor, product), time: ProcessInfo.processInfo.systemUptime)
+    let id = Self.deviceId(vendor, product)
+    let now = ProcessInfo.processInfo.systemUptime
     if page == kHIDPage_KeyboardOrKeypad, let mac = config.hidToMac[usage] {
+      let seen = Seen(device: id, time: now)
       lastKey[mac] = seen
       // Caps Lock rimappato: macOS manda F18, ma IOHID vede ancora Caps Lock.
       if mac == Self.capsLock { lastKey[Self.f18] = seen }
     } else if page == kHIDPage_Button, usage >= 1 {
-      lastButton[Int64(usage - 1)] = seen
+      // I mouse hanno ":M" in fondo all'id (vedi DeviceConfig.id in Flutter).
+      lastButton[Int64(usage - 1)] = Seen(device: "\(id):M", time: now)
     }
   }
 

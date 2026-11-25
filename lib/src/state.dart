@@ -40,7 +40,7 @@ class AppState extends ChangeNotifier {
   /// Quelli collegati adesso, come li vede macOS.
   List<DetectedDevice> connected = const [];
 
-  bool isConnected(DeviceConfig d) => connected.any((c) => c.id == d.id);
+  bool isConnected(DeviceConfig d) => connected.any((c) => c.id == d.baseId);
 
   String? _deviceId;
 
@@ -88,13 +88,19 @@ class AppState extends ChangeNotifier {
     final c = _config;
     if (c == null) return;
     for (final d in connected) {
-      final known = c.devices.where((k) => k.id == d.id).firstOrNull;
-      if (known == null) {
-        // Tastiere e mouse esterni nuovi compaiono subito come schede: finché
-        // non cambi un tasto restano come sono. Quelli integrati del Mac no.
-        c.devices.add(DeviceConfig.auto(d, managed: !d.builtIn));
-      } else if (known.name.isEmpty) {
-        known.name = d.name;
+      final configs = DeviceConfig.fromDetected(d, managed: !d.builtIn);
+      for (final cfg in configs) {
+        // Un dispositivo solo: lo riconosco anche se ne hai cambiato il tipo.
+        final known = c.devices
+            .where((k) => k.id == cfg.id || (configs.length == 1 && k.baseId == cfg.baseId))
+            .firstOrNull;
+        if (known == null) {
+          // Tastiere e mouse esterni nuovi compaiono subito come schede: finché
+          // non cambi un tasto restano come sono. Quelli integrati del Mac no.
+          c.devices.add(cfg);
+        } else if (known.name.isEmpty) {
+          known.name = d.name;
+        }
       }
     }
   }
@@ -355,15 +361,22 @@ class AppState extends ChangeNotifier {
   void _changed({bool applyToo = true}) {
     if (applyToo) _dirty = true;
     notifyListeners();
-    _saveSoon();
+    _saveSoon(applyToo: applyToo);
   }
 
   Timer? _saveTimer;
-  void _saveSoon() {
+
+  /// Ogni modifica viene salvata e mandata al motore da sola, dopo un attimo.
+  void _saveSoon({bool applyToo = false}) {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 400), () {
       final c = _config;
-      if (c != null) store.save(c);
+      if (c == null) return;
+      if (applyToo) {
+        apply();
+      } else {
+        store.save(c);
+      }
     });
   }
 
@@ -373,6 +386,7 @@ class AppState extends ChangeNotifier {
     if (c == null) return;
     await store.save(c);
     await engine.apply(profiles: c.profiles, devices: c.devices, enabled: c.enabled);
+    status = await engine.status();
     _dirty = false;
     lastApplied = DateTime.now();
     notifyListeners();
