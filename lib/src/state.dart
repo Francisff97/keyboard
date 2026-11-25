@@ -11,6 +11,8 @@ import 'model/keyboard.dart';
 import 'model/profile.dart';
 import 'model/seed.dart';
 
+const toccoBundleId = 'me.francescoferri.tocco';
+
 /// Tutto lo stato dell'app in un posto solo.
 class AppState extends ChangeNotifier {
   AppState({Store? store, Engine? engine}) : store = store ?? Store(), engine = engine ?? Engine();
@@ -120,6 +122,12 @@ class AppState extends ChangeNotifier {
   final pressed = <String>{};
 
   EngineStatus status = const EngineStatus();
+
+  /// Id del dispositivo da cui è arrivato l'ultimo tasto (dal motore).
+  String? lastInputId;
+
+  /// Il dispositivo da cui stai scrivendo, se Tocco lo conosce.
+  DeviceConfig? get lastInputDevice => devices.where((d) => d.id == lastInputId).firstOrNull;
   List<AppRef> installedApps = const [];
   AppRef? frontApp;
 
@@ -151,7 +159,8 @@ class AppState extends ChangeNotifier {
     HardwareKeyboard.instance.addHandler(_onKey);
     // Gli eventi arrivano solo se il motore Swift c'è.
     if (status.native) _sub = engine.events.listen(_onEngineEvent);
-    installedApps = await engine.installedApps();
+    // Tocco stesso non si può legare a un profilo: quando sei in Tocco vale l'app di prima.
+    installedApps = (await engine.installedApps()).where((a) => a.bundleId != toccoBundleId).toList();
     frontApp = await engine.frontApp();
     notifyListeners();
     await apply();
@@ -175,12 +184,17 @@ class AppState extends ChangeNotifier {
     switch (e) {
       case FrontAppChanged(:final app):
         // Tocco stesso non conta: altrimenti aprendo l'app cambierebbe sempre profilo.
-        if (app.bundleId != 'me.francescoferri.tocco') frontApp = app;
+        if (app.bundleId != toccoBundleId) frontApp = app;
       case DevicesChanged(:final devices):
         connected = devices;
         _mergeConnected(firstRun: false);
       case PermissionsChanged(:final status):
         this.status = status;
+      case InputFrom(:final deviceId):
+        lastInputId = deviceId;
+        // Un tasto da un dispositivo mai visto (es. interfaccia nascosta di un
+        // ricevitore): aggiorno la lista.
+        if (lastInputDevice == null) refreshEngine();
       case EnabledChanged(:final enabled):
         _config?.enabled = enabled;
         _saveSoon();
@@ -258,7 +272,7 @@ class AppState extends ChangeNotifier {
   }
 
   void addApp(AppRef app) {
-    if (profile.global || profile.apps.contains(app)) return;
+    if (profile.global || profile.apps.contains(app) || app.bundleId == toccoBundleId) return;
     // Un'app appartiene a un profilo solo.
     for (final p in profiles) {
       p.apps.remove(app);

@@ -50,6 +50,12 @@ class DevicesChanged extends EngineEvent {
   final List<DetectedDevice> devices;
 }
 
+/// Hai appena premuto un tasto (o un pulsante) su questo dispositivo.
+class InputFrom extends EngineEvent {
+  InputFrom(this.deviceId);
+  final String deviceId;
+}
+
 /// Il motore è stato messo in pausa (o ripreso) dalla barra dei menu.
 class EnabledChanged extends EngineEvent {
   EnabledChanged(this.enabled);
@@ -88,6 +94,8 @@ class Engine {
             return DevicesChanged([
               for (final d in (m['devices'] as List?) ?? const []) DetectedDevice.fromMap(d as Map<Object?, Object?>),
             ]);
+          case 'input':
+            return InputFrom(m['device'] as String? ?? '');
           case 'enabled':
             return EnabledChanged(m['enabled'] == true);
           case 'permissions':

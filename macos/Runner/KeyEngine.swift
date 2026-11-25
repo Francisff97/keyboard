@@ -175,6 +175,7 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
   /// Ultime pressioni viste da IOHID, per tasto (keycode Mac) e per pulsante.
   private var lastKey: [Int64: Seen] = [:]
   private var lastButton: [Int64: Seen] = [:]
+  private var lastInputDevice = ""
 
   // MARK: Avvio
 
@@ -400,6 +401,14 @@ final class KeyEngine: NSObject, FlutterStreamHandler {
     } else if page == kHIDPage_Button, usage >= 1 {
       // I mouse hanno ":M" in fondo all'id (vedi DeviceConfig.id in Flutter).
       lastButton[Int64(usage - 1)] = Seen(device: "\(id):M", time: now)
+    } else {
+      return
+    }
+    // Dico a Flutter da quale dispositivo stai scrivendo (solo quando cambia).
+    let from = page == kHIDPage_Button ? "\(id):M" : id
+    if from != lastInputDevice {
+      lastInputDevice = from
+      send(["type": "input", "device": from])
     }
   }
 

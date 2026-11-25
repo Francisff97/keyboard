@@ -159,6 +159,7 @@ class _Center extends StatelessWidget {
 
           // Dispositivi gestiti.
           _DevicesRow(state: state),
+          _InputHint(state: state),
           const SizedBox(height: 12),
 
           // Livelli e etichette.
@@ -300,7 +301,55 @@ class _AppsRow extends StatelessWidget {
             ),
           ),
         FDTextLink(label: '+ Aggiungi app', onTap: onAdd),
+        if (p.apps.any((a) => a.bundleId == toccoBundleId))
+          Text(
+            'TOCCO NON CONTA: QUANDO SEI IN TOCCO VALE L\'APP DI PRIMA',
+            style: FD.monoStyle(size: 9, color: FD.danger),
+          ),
       ],
+    );
+  }
+}
+
+/// Dice da quale dispositivo stai scrivendo, se non è quello che stai guardando.
+class _InputHint extends StatelessWidget {
+  const _InputHint({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final from = state.lastInputDevice;
+    final shown = state.device;
+    if (from == null || from.id == shown?.id) return const SizedBox.shrink();
+    final name = '${from.isMouse ? 'il mouse' : 'la tastiera'} «${from.name}»';
+    final (String text, String action, VoidCallback onTap) = from.managed
+        ? (
+            'Stai usando $name: le modifiche che vedi qui non valgono per lei.',
+            'Mostrala',
+            () => state.selectDevice(from.id),
+          )
+        : (
+            'Stai usando $name, che Tocco non gestisce: i suoi tasti restano normali.',
+            'Attivala',
+            () => state.setManaged(from, true),
+          );
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: FD.accent.withValues(alpha: 0.08),
+        border: Border.all(color: FD.accent.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 12.5, height: 1.4, color: FD.text)),
+          ),
+          const SizedBox(width: 16),
+          FDTextLink(label: action, arrow: true, size: 10, onTap: onTap),
+        ],
+      ),
     );
   }
 }
@@ -644,7 +693,7 @@ class _AddAppDialogState extends State<_AddAppDialog> {
             decoration: BoxDecoration(border: Border.all(color: FD.line)),
             child: ListView(
               children: [
-                if (front != null && _q.isEmpty && !apps.contains(front))
+                if (front != null && _q.isEmpty && !apps.contains(front) && front.bundleId != toccoBundleId)
                   AppRow(app: front, trailing: 'in primo piano', onTap: () => Navigator.of(context).pop(front)),
                 for (final a in apps)
                   AppRow(
